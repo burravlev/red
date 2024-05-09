@@ -1,8 +1,16 @@
 use std::{any, io::{stdout, Write}};
 
-use crossterm::{cursor, event::{self, read}, style, terminal, ExecutableCommand, QueueableCommand};
+use crossterm::{cursor, event::{self, read}, style::{self, Color, Stylize}, terminal, ExecutableCommand, QueueableCommand};
+
+#[derive(Debug)]
+enum Mode {
+    Normal,
+    Insert,
+}
 
 struct Editor {
+    mode: Mode,
+
     out: std::io::Stdout,
     rows: usize,
     cols: usize,
@@ -25,6 +33,7 @@ impl Editor {
         buffer.read_file(Some(String::from("src/main.rs")))?;
 
         Ok(Editor {
+            mode: Mode::Normal,
             out: stdout,
             cols: (size.0) as usize,
             rows: (size.1 - 1) as usize,
@@ -45,6 +54,7 @@ impl Editor {
             self.out.queue(terminal::Clear(terminal::ClearType::All))?;
             self.scroll()?;
             self.print()?;
+            self.print_statusbar()?;
             self.move_caret()?;
             self.out.queue(cursor::Show)?;
             self.out.flush()?;
@@ -71,7 +81,51 @@ impl Editor {
             self.out.queue(cursor::MoveTo(0, row as u16))?;
             self.out.queue(style::Print(chars))?;
         }
-        self.out.flush()?;
+        Ok(())
+    }
+
+    fn print_statusbar(&mut self) -> anyhow::Result<()> {
+        self.out.queue(cursor::MoveTo(0, self.rows as u16))?;
+
+        let mode: String = format!("{:?}", self.mode).to_uppercase();
+
+        let bg_color = match self.mode {
+            Mode::Normal => Color::Rgb { r: 184, g: 144, b: 243 },
+            Mode::Insert => Color::Rgb { r: 194, g: 255, b: 102 },
+        };
+
+        self.out.queue(style::PrintStyledContent(format!(" {} ", mode)
+            .with(Color::Rgb { 
+                r: 0, 
+                g: 0, 
+                b: 0, 
+            }).bold().on(bg_color))
+        )?;
+
+        // TODO change to opened file
+        let file = self.buffer.file.as_deref().unwrap_or("no file");
+
+        let pos = format!(" {}:{} ", self.current_col, self.current_row);
+        let file_width = self.cols - mode.len() - 2 - pos.len() - 1;
+        self.out.queue(style::PrintStyledContent(format!(" {:<width$}", file, width = file_width as usize)
+            .with(Color::Rgb { 
+                r: 255, 
+                g: 255, 
+                b: 255, 
+            }).bold().on(Color::Rgb { 
+                r: 67, 
+                g: 70, 
+                b: 89, 
+            })))?;
+
+        self.out.queue(style::PrintStyledContent(
+            pos.with(Color::Rgb { 
+                r: 0, 
+                g: 0, 
+                b: 0, 
+            }).bold().on(bg_color))
+        )?;
+
         Ok(())
     }
 
@@ -83,6 +137,10 @@ impl Editor {
     }
 
     fn scroll(&mut self) -> anyhow::Result<()> {
+        let size = terminal::size()?;
+        self.cols = size.0 as usize;
+        self.rows = (size.1 - 1) as usize;
+        
         if self.current_row < self.row_off {
             self.row_off = self.current_row;
         }
