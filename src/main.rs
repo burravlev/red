@@ -39,13 +39,14 @@ impl Editor {
     fn run(&mut self) -> anyhow::Result<()> {
         terminal::enable_raw_mode()?;
         self.out.execute(terminal::EnterAlternateScreen)?;
-        self.out.execute(terminal::Clear(terminal::ClearType::All))?;
 
         loop {
+            self.out.queue(cursor::Hide)?;
             self.out.queue(terminal::Clear(terminal::ClearType::All))?;
             self.scroll()?;
             self.print()?;
             self.move_caret()?;
+            self.out.queue(cursor::Show)?;
             self.out.flush()?;
             if self.handle_event()? {
                 break;
@@ -58,15 +59,17 @@ impl Editor {
     fn print(&mut self) -> anyhow::Result<()>{
         for row in 0..self.rows {
             let row_buf = row + self.row_off;
+            let mut chars = String::new();            
             for col in 0..self.cols {
                 let col_buf = col + self.col_off;
                 if row_buf < self.buffer.height() && col_buf < self.buffer.line_width(row_buf) {
-                    self.out.queue(cursor::MoveTo(col as u16, row as u16))?;
-                    self.out.queue(style::Print(self.buffer.get(row, col)))?;
+                    chars.push(self.buffer.get(row_buf, col_buf));
                 } else if row_buf >= self.buffer.height() && row_buf < self.rows {
-                    self.out.queue(style::Print('~'))?;
+                    self.out.queue(style::Print("~\n"))?;
                 }
             }
+            self.out.queue(cursor::MoveTo(0, row as u16))?;
+            self.out.queue(style::Print(chars))?;
         }
         self.out.flush()?;
         Ok(())
@@ -99,9 +102,39 @@ impl Editor {
         match event::read()? {
             event::Event::Key(event) => match event.code {
                 event::KeyCode::Char('q') => Ok(true),
+                event::KeyCode::Up => {
+                    if self.current_row != 0 {
+                        self.current_row -= 1;
+                        if self.current_col > self.buffer.line_width(self.current_row) {
+                            self.current_col = self.buffer.line_width(self.current_row);
+                        }
+                    }
+                    Ok(false)
+                },
                 event::KeyCode::Down => {
                     if self.current_row != self.buffer.height() - 1 {
                         self.current_row += 1;
+                        if self.current_col > self.buffer.line_width(self.current_row) {
+                            self.current_col = self.buffer.line_width(self.current_row);
+                        }
+                    }
+                    Ok(false)
+                },
+                event::KeyCode::Left => {
+                    if self.current_col != 0 {
+                        self.current_col -= 1;
+                    } else if self.current_row != 0 {
+                        self.current_row -= 1;
+                        self.current_col = self.buffer.line_width(self.current_row);
+                    }
+                    Ok(false)
+                },
+                event::KeyCode::Right => {
+                    if self.current_col != self.buffer.line_width(self.current_row) {
+                        self.current_col += 1;
+                    } else if self.current_row < self.buffer.height() - 1 {
+                        self.current_row += 1;
+                        self.current_col = 0;
                     }
                     Ok(false)
                 },
