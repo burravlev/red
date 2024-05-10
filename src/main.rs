@@ -175,12 +175,12 @@ impl Editor {
                 event::KeyCode::Backspace => {
                     self.buffer.delete(self.current_row, self.current_col);
                     if self.current_col > 0 {
-                        self.current_col = self.current_col.saturating_sub(1);
                     }
                     if self.current_col == 0 && self.current_row > 0 {
                         self.current_row = self.current_row.saturating_sub(1);
                         self.current_col = self.buffer.line_width(self.current_row);
                     }
+                    self.current_col = self.current_col.saturating_sub(1);
                     Ok(false)
                 }
                 event::KeyCode::Up => {
