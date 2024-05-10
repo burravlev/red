@@ -173,7 +173,7 @@ impl Editor {
                     Ok(false)
                 },
                 event::KeyCode::Backspace => {
-                    let col = self.buffer.line_width(self.current_row - 1);
+                    let col = self.buffer.line_width(self.current_row.saturating_sub(1));
                     self.buffer.delete(self.current_row, self.current_col);
 
                     if self.current_col > 0 {
