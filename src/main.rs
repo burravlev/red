@@ -172,6 +172,17 @@ impl Editor {
                     self.current_col = 0;
                     Ok(false)
                 },
+                event::KeyCode::Backspace => {
+                    self.buffer.delete(self.current_row, self.current_col);
+                    if self.current_col > 0 {
+                        self.current_col = self.current_col.saturating_sub(1);
+                    }
+                    if self.current_col == 0 && self.current_row > 0 {
+                        self.current_row = self.current_row.saturating_sub(1);
+                        self.current_col = self.buffer.line_width(self.current_row);
+                    }
+                    Ok(false)
+                }
                 event::KeyCode::Up => {
                     if self.current_row != 0 {
                         self.current_row -= 1;
@@ -286,6 +297,21 @@ impl Buffer {
         let left_line: Vec<char> = self.buffer[row].drain(..col).collect();
         self.buffer[row] = left_line;
         self.buffer.insert(row + 1, right_line);
+    }
+
+    fn delete(&mut self, row: usize, col: usize) {
+        if col > 0 {
+            let line = self.buffer.get_mut(row).unwrap();
+            line.remove(col);
+        } else if row > 0 {
+            let mut col = self.buffer[row - 1].len();
+            let line = self.buffer[row].clone();
+            for c in line.iter() {
+                self.insert(*c, row - 1, col);
+                col += 1;
+            }
+            self.buffer.remove(row);
+        }
     }
 }
 
