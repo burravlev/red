@@ -303,7 +303,7 @@ impl Buffer {
     fn delete(&mut self, row: usize, col: usize) {
         if col > 0 {
             let line = self.buffer.get_mut(row).unwrap();
-            line.remove(col);
+            line.remove(col - 1);
         } else if row > 0 {
             let line = self.buffer[row].clone();
             for c in line.iter() {
