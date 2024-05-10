@@ -273,7 +273,7 @@ impl Buffer {
     }
 
     fn line_width(&self, row: usize) -> usize {
-        if row < self.height() {
+        if row < self.height() && row >= 0 {
             return self.buffer[row].len()
         }
         0
@@ -305,11 +305,9 @@ impl Buffer {
             let line = self.buffer.get_mut(row).unwrap();
             line.remove(col);
         } else if row > 0 {
-            let mut col = self.buffer[row - 1].len();
             let line = self.buffer[row].clone();
             for c in line.iter() {
-                self.insert(*c, row - 1, col);
-                col += 1;
+                self.buffer.get_mut(row - 1).unwrap().push(*c);
             }
             self.buffer.remove(row);
         }
