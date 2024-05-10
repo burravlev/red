@@ -1,5 +1,6 @@
 use std::{any, io::{stdout, Write}};
 
+use anyhow::Ok;
 use crossterm::{cursor, event::{self, read}, style::{self, Color, Stylize}, terminal, ExecutableCommand, QueueableCommand};
 
 #[derive(Debug)]
@@ -160,6 +161,17 @@ impl Editor {
         match event::read()? {
             event::Event::Key(event) => match event.code {
                 event::KeyCode::Char('q') => Ok(true),
+                event::KeyCode::Char(c) => {
+                    self.buffer.insert(c, self.current_row, self.current_col);
+                    self.current_col += 1;
+                    Ok(false)
+                },
+                event::KeyCode::Enter => {
+                    self.buffer.insert_line(self.current_row, self.current_col);
+                    self.current_row += 1;
+                    self.current_col = 0;
+                    Ok(false)
+                },
                 event::KeyCode::Up => {
                     if self.current_row != 0 {
                         self.current_row -= 1;
@@ -262,6 +274,18 @@ impl Buffer {
             }
         }
         ' '
+    }
+
+    fn insert(&mut self, c: char, row: usize, col: usize) {
+        let line = self.buffer.get_mut(row).unwrap();
+        line.insert(col, c);
+    }
+    
+    fn insert_line(&mut self, row: usize, col: usize) {
+        let left_line: Vec<char> = self.buffer[row].drain(col..).collect();
+        let right_line: Vec<char> = self.buffer[row].drain(..col).collect();
+        self.buffer[row] = left_line;
+        self.buffer.insert(row + 1, right_line);
     }
 }
 
