@@ -282,8 +282,8 @@ impl Buffer {
     }
     
     fn insert_line(&mut self, row: usize, col: usize) {
-        let left_line: Vec<char> = self.buffer[row].drain(col..).collect();
-        let right_line: Vec<char> = self.buffer[row].drain(..col).collect();
+        let right_line: Vec<char> = self.buffer[row].drain(col..).collect();
+        let left_line: Vec<char> = self.buffer[row].drain(..col).collect();
         self.buffer[row] = left_line;
         self.buffer.insert(row + 1, right_line);
     }
