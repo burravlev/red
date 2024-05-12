@@ -1,7 +1,7 @@
-use std::{any, io::{stdout, Write}};
+use std:: io::{stdout, Write};
 
 use anyhow::Ok;
-use crossterm::{cursor, event::{self, read}, style::{self, Color, Stylize}, terminal, ExecutableCommand, QueueableCommand};
+use crossterm::{cursor, event::{self}, style::{self, Color, Stylize}, terminal, ExecutableCommand, QueueableCommand};
 
 #[derive(Debug)]
 enum Mode {
@@ -157,33 +157,9 @@ impl Editor {
         Ok(())
     }
 
-    fn handle_event(&mut self) -> anyhow::Result<bool> {
+    fn handle_normal_event(&mut self) -> anyhow::Result<bool> {
         match event::read()? {
             event::Event::Key(event) => match event.code {
-                event::KeyCode::Char('q') => Ok(true),
-                event::KeyCode::Char(c) => {
-                    self.buffer.insert(c, self.current_row, self.current_col);
-                    self.current_col += 1;
-                    Ok(false)
-                },
-                event::KeyCode::Enter => {
-                    self.buffer.insert_line(self.current_row, self.current_col);
-                    self.current_row += 1;
-                    self.current_col = 0;
-                    Ok(false)
-                },
-                event::KeyCode::Backspace => {
-                    let col = self.buffer.line_width(self.current_row.saturating_sub(1));
-                    self.buffer.delete(self.current_row, self.current_col);
-
-                    if self.current_col > 0 {
-                        self.current_col = self.current_col.saturating_sub(1);
-                    } else if self.current_row > 0 {
-                        self.current_row = self.current_row.saturating_sub(1);
-                        self.current_col = col;
-                    }
-                    Ok(false)
-                }
                 event::KeyCode::Up => {
                     if self.current_row != 0 {
                         self.current_row -= 1;
@@ -220,6 +196,60 @@ impl Editor {
                     }
                     Ok(false)
                 },
+                event::KeyCode::Char('q') => {
+                    Ok(true)
+                },
+                event::KeyCode::Char('s') => {
+                    self.buffer.write_file()?;
+                    Ok(false)
+                },
+                event::KeyCode::Char('i') => {
+                    self.mode = Mode::Insert;
+                    Ok(false)
+                }
+                _ => Ok(false)
+            }
+            _ => Ok(false)
+        }
+    }
+
+    fn handle_event(&mut self) -> anyhow::Result<bool> {
+        match self.mode {
+            Mode::Normal => self.handle_normal_event(),
+            Mode::Insert => self.handle_insert_event(),
+        }
+    }
+
+    fn handle_insert_event(&mut self) -> anyhow::Result<bool> {
+        match event::read()? {
+            event::Event::Key(event) => match event.code {
+                event::KeyCode::Esc => {
+                    self.mode = Mode::Normal;
+                    Ok(false)
+                }
+                event::KeyCode::Char(c) => {
+                    self.buffer.insert(c, self.current_row, self.current_col);
+                    self.current_col += 1;
+                    Ok(false)
+                },
+                event::KeyCode::Enter => {
+                    self.buffer.insert_line(self.current_row, self.current_col);
+                    self.current_row += 1;
+                    self.current_col = 0;
+                    Ok(false)
+                },
+                event::KeyCode::Backspace => {
+                    let col = self.buffer.line_width(self.current_row.saturating_sub(1));
+                    self.buffer.delete(self.current_row, self.current_col);
+
+                    if self.current_col > 0 {
+                        self.current_col = self.current_col.saturating_sub(1);
+                    } else if self.current_row > 0 {
+                        self.current_row = self.current_row.saturating_sub(1);
+                        self.current_col = col;
+                    }
+                    Ok(false)
+                }
                 _ => Ok(false),
             }
             _ => Ok(false),
@@ -264,7 +294,10 @@ impl Buffer {
         Ok(())
     }
 
-    fn write_file(&mut self, filename: Option<String>) -> anyhow::Result<()> {
+    fn write_file(&mut self) -> anyhow::Result<()> {
+        let lines: Vec<String>  = self.buffer.iter().map(|s| s.iter().collect()).collect();
+        let filename = self.file.clone().unwrap();
+        std::fs::write(filename, lines.join("\n"))?;
         Ok(())
     }
 
@@ -273,7 +306,7 @@ impl Buffer {
     }
 
     fn line_width(&self, row: usize) -> usize {
-        if row < self.height() && row >= 0 {
+        if row < self.height() {
             return self.buffer[row].len()
         }
         0
