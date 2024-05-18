@@ -161,6 +161,9 @@ impl Editor {
         match event::read()? {
             event::Event::Key(event) => match event.code {
                 event::KeyCode::Up => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     if self.current_row != 0 {
                         self.current_row -= 1;
                         if self.current_col > self.buffer.line_width(self.current_row) {
@@ -170,6 +173,9 @@ impl Editor {
                     Ok(false)
                 },
                 event::KeyCode::Down => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     if self.current_row != self.buffer.height() - 1 {
                         self.current_row += 1;
                         if self.current_col > self.buffer.line_width(self.current_row) {
@@ -179,6 +185,9 @@ impl Editor {
                     Ok(false)
                 },
                 event::KeyCode::Left => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     if self.current_col != 0 {
                         self.current_col -= 1;
                     } else if self.current_row != 0 {
@@ -188,6 +197,9 @@ impl Editor {
                     Ok(false)
                 },
                 event::KeyCode::Right => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     if self.current_col != self.buffer.line_width(self.current_row) {
                         self.current_col += 1;
                     } else if self.current_row < self.buffer.height() - 1 {
@@ -197,13 +209,22 @@ impl Editor {
                     Ok(false)
                 },
                 event::KeyCode::Char('q') => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     Ok(true)
                 },
                 event::KeyCode::Char('s') => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     self.buffer.write_file()?;
                     Ok(false)
                 },
                 event::KeyCode::Char('i') => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     self.mode = Mode::Insert;
                     Ok(false)
                 }
@@ -224,21 +245,33 @@ impl Editor {
         match event::read()? {
             event::Event::Key(event) => match event.code {
                 event::KeyCode::Esc => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     self.mode = Mode::Normal;
                     Ok(false)
                 }
                 event::KeyCode::Char(c) => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     self.buffer.insert(c, self.current_row, self.current_col);
                     self.current_col += 1;
                     Ok(false)
                 },
                 event::KeyCode::Enter => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     self.buffer.insert_line(self.current_row, self.current_col);
                     self.current_row += 1;
                     self.current_col = 0;
                     Ok(false)
                 },
                 event::KeyCode::Backspace => {
+                    if event.kind != event::KeyEventKind::Press {
+                        return Ok(false)
+                    }
                     let col = self.buffer.line_width(self.current_row.saturating_sub(1));
                     self.buffer.delete(self.current_row, self.current_col);
 
